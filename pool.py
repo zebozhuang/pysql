@@ -95,6 +95,44 @@ class ThreadDict(threading.local):
     __str__ = __repr__
 
 
+class Item(dict):
+    """
+    A Item object is like a dictionary which can not only be used as `obj.foo`,
+    but also be used as `obj['foo']`.
+
+        >>> item = Item(x=1)
+        >>> item.x
+        1
+        >>> item['x']
+        1
+        >>> item.x = 2
+        >>> item['x']
+        2
+        >>> del item.x
+        >>> item.x
+        Traceback (most recent call last):
+        ...
+        AttributeError: x
+    """
+
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError as e:
+            raise AttributeError(e)
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    def __delitem__(self, key):
+        try:
+            del self[key]
+        except KeyError as e:
+            raise AttributeError(e)
+
+    def __repr__(self):
+        return '<Item ' + dict.__repr__(self) + '>'
+
 
 class DB(object):
     """Basic MySQL CRUD API"""

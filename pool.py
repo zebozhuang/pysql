@@ -134,6 +134,131 @@ class Item(dict):
         return '<Item ' + dict.__repr__(self) + '>'
 
 
+class SQLParam(object):
+    """
+    Parameter in SQLQuery
+    """
+
+    __slots__ = ['value']
+
+    def __init__(self, value):
+        self.value = value
+
+    def get_marker(self):
+        return '%s'
+
+    def __add__(self, other):
+        return self.sqlquery() + other
+
+    def __radd__(self, other):
+        return other + self.sqlquery()
+
+    def __str__(self):
+        return str(self.value)
+
+    def __repr__(self):
+        return '<param: %s>' % repr(self.value)
+
+    def sqlquery(self):
+        return SQLQuery([self])
+
+
+class SQLQuery(object):
+    """
+        Compose SQL with parameters.
+    """
+
+    __slots__ = ['items']
+
+    def __init__(self, items=None):
+        if items is None:
+            self.items = []
+        elif isinstance(items, list):
+            self.items = items
+        elif isinstance(items, SQLParam):
+            self.items = [items]
+        elif isinstance(items, SQLQuery):
+            self.items = items.items
+        else:
+            self.items = [items]
+
+    def __add__(self, other):
+        if isinstance(other, str):
+            items = [other]
+        elif isinstance(other, SQLQuery):
+            items = other.items
+        else:
+            raise NotImplemented
+        return SQLQuery(self.items + items)
+
+    def __radd__(self, other):
+        if isinstance(other, str):
+            items = [other]
+        else:
+            raise NotImplemented
+        return SQLQuery(items + self.items)
+
+    def __iadd__(self, other):
+        if isinstance(other, (str, SQLParam)):
+            self.items.append(other)
+        elif isinstance(other, SQLQuery):
+            self.items.extend(other.items)
+        else:
+            raise NotImplemented
+        return self
+
+    def __len__(self):
+        return len(self.query())
+
+    def query(self):
+        """
+        Returns the query part of the sql query.
+            >>> q = SQLQuery(["SELECT * FROM test WHERE name=", SQLParam('joe')])
+            >>> q.query()
+            'SELECT * FROM test WHERE name=%s'
+            >>> q.query(paramstyle='qmark')
+            'SELECT * FROM test WHERE name=?'
+        """
+        s = []
+        for x in self.items:
+            if isinstance(x, SQLParam):
+                s.append(x.get_marker())
+            else:
+                x = str(x)
+                if '%%' in x:
+                    x = x.replace('%', '%%')
+                s.append(x)
+        return ''.join(s)
+
+    def values(self):
+        return [i.value for i in self.items if isinstance(i, SQLParam)]
+
+    def join(items, sep=' ', prefix=None, suffix=None, target=None):
+        """
+        Joins multiple queries.
+
+            >>> SQLQuery.join(['a', 'b'], ', ')
+            <sql: 'a, b'>
+
+        Optinally, prefix and suffix arguments can be provided.
+            >>> SQLQuery.join(['a', 'b'], ', ', prefix='(', suffix=')')
+            <sql: '(a, b)'>
+        If target argument is provided, the items are appended to target instead of creating a new SQLQuery.
+        """
+        if target is None:
+            target = SQLQuery()
+
+        if prefix:
+            target += prefix
+        for i, item in enumerate(items):
+            if i != 0:
+                target += sep
+            target += item
+        if suffix:
+            target += suffix
+        return target
+
+
 class DB(object):
     """Basic MySQL CRUD API"""
 

@@ -284,13 +284,18 @@ def sqlconvert(data, grouping=', '):
     """
     Convert a two tuple (key, value) iterable `data` to an SQL key=value with a grouping.
         :param data: [(key1, value1), (key2, value2), ...]
-        :param grouping: Separate key/values pairs.
+        :param grouping: Separate key/values pairs(`,` and `and`).
         :return: SQLQuery
     """
 
     items = []
     for k, v in data:
-        pass
+        if isinstance(v, Field):
+            # update table set value=Field(value+1)
+            items.append("".join((k, ' = ', str(v))))
+        else:
+            items.append("".join((k, ' = ', SQLParam(v))))
+    return SQLQuery.join(items, grouping)
 
 
 def sqlify(obj):
@@ -307,6 +312,29 @@ def sqlify(obj):
         return repr(obj.isoformat())
     else:
         return repr(obj)
+
+_SQL_OPERATOR = {
+    'GT': ' > ',
+    'GTE': ' >= ',
+    'EQ': ' = ',
+    'NEQ': ' != ',
+    'LT': ' < ',
+    'LTE': ' <= ',
+    'IN': ' IN ',
+    'NIN': ' NOT IN ',
+    'LIKE': ' LIKE ',
+    'REGEXP': ' REGEXP ',
+    'SQL': ' SQL ',
+}
+
+def sqloperator(operator):
+    """
+    Translate operator into sql operator.
+    """
+    operator = operator.upper()
+    assert operator in _SQL_OPERATOR, 'Not support operator: %s' % str(operator)
+
+    return _SQL_OPERATOR[operator]
 
 
 class DB(object):

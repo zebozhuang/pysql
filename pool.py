@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import datetime
 import threading
 
 
@@ -210,6 +211,15 @@ class SQLQuery(object):
     def __len__(self):
         return len(self.query())
 
+    def __str__(self):
+        try:
+            return self.query() % tuple([sqlify(obj) for obj in self.values()])
+        except (ValueError, TypeError):
+            return self.query()
+
+    def __repr__(self):
+        return '<sql: %s>' % repr(str(self))
+
     def query(self):
         """
         Returns the query part of the sql query.
@@ -259,6 +269,46 @@ class SQLQuery(object):
         return target
 
 
+class Field(object):
+    """
+    Field is to combine keys and constants together like `num=Field('num+1')` etc.
+    """
+    def __init__(self, s):
+        self.s = s
+
+    def __str__(self):
+        return str(self.s)
+
+
+def sqlconvert(data, grouping=', '):
+    """
+    Convert a two tuple (key, value) iterable `data` to an SQL key=value with a grouping.
+        :param data: [(key1, value1), (key2, value2), ...]
+        :param grouping: Separate key/values pairs.
+        :return: SQLQuery
+    """
+
+    items = []
+    for k, v in data:
+        pass
+
+
+def sqlify(obj):
+    """
+    Convert `obj` to its proper SQL version
+    :param obj:
+    :return:
+    """
+    if obj is None:
+        return 'NULL'
+    elif isinstance(obj, int):
+        return str(obj)
+    elif isinstance(obj, datetime.datetime):
+        return repr(obj.isoformat())
+    else:
+        return repr(obj)
+
+
 class DB(object):
     """Basic MySQL CRUD API"""
 
@@ -273,6 +323,90 @@ class DB(object):
         self.module = module
         self.config = config
         self._ctx = ThreadDict()
+
+    def _getctx(self):
+        if not self._ctx.get('db'):
+            self._load_context(self._ctx)
+        return self._ctx
+
+    ctx = property(_getctx)
+
+    def _load_context(self, ctx):
+        """Create a db connection"""
+        ctx.dbq_count = 0
+        ctx.transactions = []
+        ctx.db = self._connect(self.config)
+
+        def commit(unload=True):
+            ctx.db.commit()
+            if unload:
+                self._unload_context(self._ctx)
+
+        def rollback():
+            ctx.db.rollback()
+            self._unload_context(self._ctx)
+
+        ctx.commit = commit
+        ctx.rollback = rollback
+
+    def _unload_context(self, ctx):
+        """Delete db connection, the connection will recycle in PoolDB"""
+        del ctx.db
+
+    def _connect(self, config):
+        """Connect to db server, and return a connection."""
+        def get_pooled_db():
+            from DBUtils import PooledDB
+            # Please configure mincached, maxchached, maxshared in config.
+            return PooledDB.PooledDB(creator=self.module, **config)
+
+        if hasattr(self, '_pooleddb') is None:
+            self._pooleddb = get_pooled_db()
+
+        return self._pooleddb.connection()
+
+    def _db_cursor(self):
+        """Get cursor from ctx.db"""
+        return self.ctx.db.cursor()
+
+    def _db_execute(self, cursor, sqlquery):
+        """Execute a real sql query"""
+        self.ctx.dbq_count += 1
+        try:
+            query, params = self._process_query(sqlquery)
+            out = cursor.execute(query, params)
+        except Exception as e:
+            if self.ctx.transactions:
+                self.ctx.transactions[-1].rollback()
+            else:
+                self.ctx.rollback()
+            raise e
+        return out
+
+    def _process_query(self, sqlquery):
+        """Separate sql and params from sqlquery"""
+        query = sqlquery.query()
+        params = sqlquery.values() or None  # None because of api `execute(sql, params=None)`
+        return query, params
+
+    def insert(self, table, obj={}, mode='INSERT', dup={}):
+        """
+        Insert data into table with INSERT, REPLACE and INSERT_IGNORE mode.
+        :param
+            table: table name
+            obj: data inserted to table
+            mode: INSERT, REPLACE, INSERT_IGNORE mode
+            dup: duplicate if data exists.
+        """
+        mode = mode.upper()
+        assert mode in ('INSERT', 'REPLACE', 'INSERT_IGNORE'), 'Wrong insert mode: %s' % mode
+
+        kvs = sorted(obj.items(), key=lambda v: v[0])
+        keys = SQLQuery.join(map(lambda kv: kv[0], kvs), sep=', ', prefix='(', suffix=')')
+        values = SQLQuery.join(map(lambda kv: kv[1], kvs), sep=', ', prefix='(', suffix=')')
+
+        sqlquery = "{mode} INTO {table} {keys} VALUES {values}".format(mode=mode, table=table, keys=keys, values=values)
+
 
 
 if __name__ == '__main__':

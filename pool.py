@@ -434,6 +434,111 @@ class DB(object):
         values = SQLQuery.join(map(lambda kv: kv[1], kvs), sep=', ', prefix='(', suffix=')')
 
         sqlquery = "{mode} INTO {table} {keys} VALUES {values}".format(mode=mode, table=table, keys=keys, values=values)
+        if dup:
+            sqlquery += " ON DUPLICATE KEY UPDATE {fields}".format(fields=dup)
+
+        cursor = self._db_cursor()
+        self._db_execute(cursor, sqlquery)
+        self._db_execute(cursor, SQLQuery('SELECT last_insert_id()'))
+
+        try:
+            out = cursor.fetchone()[0]
+        except Exception as e:
+            # TODO: error log
+            out = None
+
+        if not self.ctx.transactions:
+            self.ctx.commit()
+        return out
+
+
+class Transaction(object):
+    """
+    Database Transaction: wrap ctx and commit transactions
+    """
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self.transaction_count = transaction_count = len(ctx.transactions)
+
+        class TransactionEngine(object):
+            """Transaction Engine used in top level transaction"""
+            def do_transact(self):
+                ctx.commit(unload=False)
+
+            def do_commit(self):
+                ctx.commit()
+
+            def do_rollback(self):
+                ctx.rollback()
+
+
+        class SubtransactionEngine(object):
+            """
+                Transaction Engine used in sub transaction.
+            """
+            def query(self, q):
+                cursor = ctx.db.cursor()
+                ctx.db_execute(cursor, SQLQuery(q % transaction_count))
+
+            def do_transact(self):
+                self.query('SAVEPOINT point_%s')
+
+            def do_commit(self):
+                self.query('RELEASE SAVEPOINT point_%s')
+
+            def do_rollback(self):
+                self.query('ROLLBACK TO SAVEPIONT sp_%s')
+
+
+        class DummyEngine(object):
+            """
+                Transaction Engine used instead of SubtransactionEngine
+                when subtransaction are not supported. MySQL supports
+                subtransaciton. DummyEngine is used for another DB of which
+                subtransaction is not supported.
+            """
+            do_transact = do_commit = do_rollback = lambda self: None
+
+        if self.transaction_count:
+            if self.ctx.get('ignore_nested_transaction'):
+                self.engine = DummyEngine()
+            else:
+                self.engine = SubtransactionEngine()
+        else:
+            self.engine = TransactionEngine()
+
+        self.engine.do_transact()
+        self.ctx.transactions.append(self)
+
+
+class SQLPool(DB):
+    """
+    MySQL Pool Connection
+    """
+
+    def __init__(self, **config):
+        module = import_driver(['pymysql', 'MySQLdb'])
+
+        config['port'] = int(config['port'])
+        config['charset'] = config.get('charset', 'utf8')
+
+        super(SQLPool, self).__init__(module, **config)
+
+        self.support_multiple_insert = True
+
+
+
+def import_driver(drivers):
+    """
+    Import the first available driver
+    """
+    for driver in drivers:
+        try:
+            return __import__(driver)
+        except ImportError:
+            pass
+    raise ImportError('Unable to import ' + ' or '.join(drivers))
 
 
 

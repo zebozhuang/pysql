@@ -196,7 +196,7 @@ class SQLQuery(object):
         if isinstance(other, str):
             items = [other]
         else:
-            raise NotImplemented
+            raise Exception("NotImplement")
         return SQLQuery(items + self.items)
 
     def __iadd__(self, other):
@@ -205,7 +205,7 @@ class SQLQuery(object):
         elif isinstance(other, SQLQuery):
             self.items.extend(other.items)
         else:
-            raise NotImplemented
+            raise Exception("NotImplement")
         return self
 
     def __len__(self):
@@ -259,13 +259,13 @@ class SQLQuery(object):
             target = SQLQuery()
 
         if prefix:
-            target += prefix
+            target.items.append(prefix)
         for i, item in enumerate(items):
             if i != 0:
-                target += sep
-            target += item
+                target.items.append(sep)
+            target.items.append(item)
         if suffix:
-            target += suffix
+            target.items.append(suffix)
         return target
 
 
@@ -388,9 +388,8 @@ class DB(object):
             # Please configure mincached, maxchached, maxshared in config.
             return PooledDB.PooledDB(creator=self.module, **config)
 
-        if hasattr(self, '_pooleddb') is None:
+        if getattr(self, '_pooleddb', None) is None:
             self._pooleddb = get_pooled_db()
-
         return self._pooleddb.connection()
 
     def _db_cursor(self):
@@ -413,6 +412,7 @@ class DB(object):
 
     def _process_query(self, sqlquery):
         """Separate sql and params from sqlquery"""
+        print(sqlquery)
         query = sqlquery.query()
         params = sqlquery.values() or None  # None because of api `execute(sql, params=None)`
         return query, params
@@ -431,11 +431,11 @@ class DB(object):
 
         kvs = sorted(obj.items(), key=lambda v: v[0])
         keys = SQLQuery.join(map(lambda kv: kv[0], kvs), sep=', ', prefix='(', suffix=')')
-        values = SQLQuery.join(map(lambda kv: kv[1], kvs), sep=', ', prefix='(', suffix=')')
+        values = SQLQuery.join(map(lambda kv: SQLParam(kv[1]), kvs), sep=', ', prefix='(', suffix=')')
 
-        sqlquery = "{mode} INTO {table} {keys} VALUES {values}".format(mode=mode, table=table, keys=keys, values=values)
+        sqlquery = "%s INTO %s " % (mode, table) + keys + " VALUES " + values
         if dup:
-            sqlquery += " ON DUPLICATE KEY UPDATE {fields}".format(fields=dup)
+            sqlquery += " ON DUPLICATE KEY UPDATE %s" % sqlconvert(dup.items())
 
         cursor = self._db_cursor()
         self._db_execute(cursor, sqlquery)
@@ -523,7 +523,7 @@ class SQLPool(DB):
         config['port'] = int(config['port'])
         config['charset'] = config.get('charset', 'utf8')
 
-        super(SQLPool, self).__init__(module, **config)
+        super(SQLPool, self).__init__(module, config)
 
         self.support_multiple_insert = True
 

@@ -220,6 +220,9 @@ class SQLQuery(object):
     def __repr__(self):
         return '<sql: %s>' % repr(str(self))
 
+    def append(self, value):
+        self.items.append(value)
+
     def query(self):
         """
         Returns the query part of the sql query.
@@ -336,6 +339,25 @@ def sqloperator(operator):
 
     return _SQL_OPERATOR[operator]
 
+def sqllist(values):
+    """
+    Make a list of data in a sql way
+    >>> sqllist([1, 2, 3])
+    <sql: '(1, 2, 3)'>
+    """
+    return SQLQuery().join(list(values), sep=',', prefix='(', suffix=')')
+
+
+def sqlquote(x):
+    """
+    Ensure `a` is quoted properly for use in a SQL query.
+        >>> 'WHERE x in ' + sqlquote([1, 2, 3])
+        <sql: WHERE x in (1,2,3)>
+    """
+    if isinstance(x, (list, tuple)):
+        return sqllist(x)
+    return SQLParam(x).sqlquery()
+
 
 class DB(object):
     """Basic MySQL CRUD API"""
@@ -450,6 +472,80 @@ class DB(object):
         if not self.ctx.transactions:
             self.ctx.commit()
         return out
+
+    def insertmany(self, table, objs=[], mode='INSERT', dup={}):
+        mode = mode.upper()
+        assert mode in ('INSERT', 'REPLACE', 'INSERT_IGNORE'), 'Wrong insert mode: %s' % mode
+
+        if not objs:
+            return None
+
+        keys = objs[0].keys()
+        for obj in objs:
+            if obj.keys() != keys:
+                raise ValueError("Not all rows have the same keys")
+
+        keys = sorted(keys)
+        sqlquery = SQLQuery("%s INTO %s (%s) VALUES " % (mode, table, ",".join(keys)))
+
+        for i, obj in enumerate(objs):
+            if i != 0:
+                sqlquery.append(",")
+            SQLQuery.join([SQLParam(obj[key]) for key in keys], sep=',', target=sqlquery, prefix='(', suffix=')')
+
+        if dup:
+            sqlquery.append("ON DUPLICATE KEY UPDATE %s" % sqlconvert(dup.items()))
+
+        cursor = self._db_cursor()
+        self._db_execute(cursor, sqlquery)
+        self._db_execute(cursor, SQLQuery("SELECT last_insert_id()"))
+
+        try:
+            out = cursor.fetchone()[0]
+            out = range(out, out + len(objs))
+        except Exception as e:
+            # TODO: error log
+            out = None
+
+        if not self.ctx.transactions:
+            self.ctx.commit()
+        return out
+
+    def _where(self, where):
+        assert isinstance(where, dict), 'Wrong format %s' % where
+
+        where_clauses = []
+        for key, value in sorted(where.items, key=lambda x: x[0]):
+            parts = key.split('__')
+            key, operator = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], 'EQ')
+            where_clauses.append(key + sqloperator(operator) + sqlquote(value))
+
+        if where_clauses:
+            return SQLQuery.join(where_clauses, " AND ")
+        return None
+
+    def _table(self, table):
+        if isinstance(table, (list, tuple)):
+            return ",".join(table)
+        return str(table)
+
+    def update(self, table, query={}, obj={}):
+        """
+        Update Tables
+        :param query is the condition
+        :param obj is the part needed to be updated
+        """
+
+        where = self._where(query)
+        values = sorted(obj.items(), key=lambda t: t[0])
+        query = "UPDATE " + self._table(table) + " SET " + sqlconvert(values)
+        if where:
+            query += ("WHERE " + where)
+        cursor = self._db_cursor()
+        self._db_execute(cursor, query)
+        if not self.ctx.transactions:
+            self.ctx.commit()
+        return cursor.rowcount
 
 
 class Transaction(object):

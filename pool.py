@@ -521,31 +521,54 @@ class DB(object):
             where_clauses.append(key + sqloperator(operator) + sqlquote(value))
 
         if where_clauses:
-            return SQLQuery.join(where_clauses, " AND ")
+            return SQLQuery.join(where_clauses, ' AND ')
         return None
 
     def _table(self, table):
         if isinstance(table, (list, tuple)):
-            return ",".join(table)
+            return ','.join(table)
         return str(table)
 
     def update(self, table, query={}, obj={}):
         """
         Update Tables
-        :param query is the condition
-        :param obj is the part needed to be updated
+        :param query: The condition
+        :param obj: The part needed to be updated
         """
 
         where = self._where(query)
         values = sorted(obj.items(), key=lambda t: t[0])
-        query = "UPDATE " + self._table(table) + " SET " + sqlconvert(values)
+        query = 'UPDATE ' + self._table(table) + ' SET ' + sqlconvert(values)
         if where:
-            query += ("WHERE " + where)
+            query += 'WHERE ' + where
         cursor = self._db_cursor()
         self._db_execute(cursor, query)
         if not self.ctx.transactions:
             self.ctx.commit()
         return cursor.rowcount
+
+    def delete(self, table, query={}, using=None):
+        """
+        Delete from table
+        :param table: table[t1, t2, t3, ...] or t1
+        :param query: The condition
+        :param using: The condition
+        :return:
+        """
+        where = self._where(query)
+        cursor = self._db_cursor()
+
+        query = 'DELETE FROM ' + self._table(table)
+        if using: query += ' USING ' + sqllist(using)
+        if where: query += ' WHERE ' + where
+
+        if not isinstance(query, SQLQuery):
+            query = SQLQuery(where)
+        self._db_execute(cursor, query)
+        if not self.ctx.transactions:
+            self.ctx.commit()
+        return cursor.rowcount
+
 
 
 class Transaction(object):

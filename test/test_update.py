@@ -28,21 +28,5 @@ class TestInsert(unittest.TestCase):
     def setUp(self):
         self.pool = SQLPool(**config)
 
-    def testInsert(self):
-
-        out = self.pool.insert(table='t1', obj={'name': 'name_%d' % int(time.time()), 'age': random.randint(1, 20)})
-        assert out is not None and out > 0, "Wrong result: %s" % out
-
-    def testInsertmany(self):
-
-        objs = [{'age': random.randint(1, 20), 'name': 'name_%d_%d' % (int(time.time()*1000), random.randint(1, 10000))}
-                for _ in range(10)]
-        out = self.pool.insertmany(table='t1', objs=objs)
-        # print(out)
-        assert out is not None
-
-    def tearDown(self):
+    def testUpdate(self):
         pass
-
-if __name__ == '__main__':
-    unittest.main()

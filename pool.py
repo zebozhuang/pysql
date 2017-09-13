@@ -529,14 +529,14 @@ class DB(object):
             return ','.join(table)
         return str(table)
 
-    def update(self, table, query={}, obj={}):
+    def update(self, table, where={}, obj={}):
         """
         Update Tables
-        :param query: The condition
+        :param where: The condition
         :param obj: The part needed to be updated
         """
 
-        where = self._where(query)
+        where = self._where(where)
         values = sorted(obj.items(), key=lambda t: t[0])
         query = 'UPDATE ' + self._table(table) + ' SET ' + sqlconvert(values)
         if where:
@@ -547,15 +547,15 @@ class DB(object):
             self.ctx.commit()
         return cursor.rowcount
 
-    def delete(self, table, query={}, using=None):
+    def delete(self, table, where={}, using=None):
         """
         Delete from table
         :param table: table[t1, t2, t3, ...] or t1
-        :param query: The condition
+        :param where: The condition
         :param using: The condition
         :return:
         """
-        where = self._where(query)
+        where = self._where(where)
         cursor = self._db_cursor()
 
         query = 'DELETE FROM ' + self._table(table)

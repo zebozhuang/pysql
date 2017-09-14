@@ -345,7 +345,7 @@ def sqllist(values):
     >>> sqllist([1, 2, 3])
     <sql: '(1, 2, 3)'>
     """
-    return SQLQuery().join(list(values), sep=',', prefix='(', suffix=')')
+    return SQLQuery.join(values, sep=',', prefix='(', suffix=')')
 
 
 def sqlquote(x):
@@ -354,6 +354,7 @@ def sqlquote(x):
         >>> 'WHERE x in ' + sqlquote([1, 2, 3])
         <sql: WHERE x in (1,2,3)>
     """
+    print("-->", x)
     if isinstance(x, (list, tuple)):
         return sqllist(x)
     return SQLParam(x).sqlquery()

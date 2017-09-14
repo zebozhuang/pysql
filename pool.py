@@ -354,7 +354,7 @@ def sqlquote(x):
         >>> 'WHERE x in ' + sqlquote([1, 2, 3])
         <sql: WHERE x in (1,2,3)>
     """
-    print("-->", x)
+
     if isinstance(x, (list, tuple)):
         return sqllist(x)
     return SQLParam(x).sqlquery()
@@ -433,9 +433,10 @@ class DB(object):
             raise e
         return out
 
-    def _process_query(self, sqlquery):
+    def _process_query(self, sqlquery, debug=True):
         """Separate sql and params from sqlquery"""
-        print(sqlquery)
+        if debug:
+            print(sqlquery)
         query = sqlquery.query()
         params = sqlquery.values() or None  # None because of api `execute(sql, params=None)`
         return query, params

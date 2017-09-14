@@ -295,9 +295,9 @@ def sqlconvert(data, grouping=', '):
     for k, v in data:
         if isinstance(v, Field):
             # update table set value=Field(value+1)
-            items.append("".join((k, ' = ', str(v))))
+            items.append(k + ' = ' + str(v))
         else:
-            items.append("".join((k, ' = ', SQLParam(v))))
+            items.append(k + ' = ' + SQLParam(v))
     return SQLQuery.join(items, grouping)
 
 
@@ -515,7 +515,7 @@ class DB(object):
         assert isinstance(where, dict), 'Wrong format %s' % where
 
         where_clauses = []
-        for key, value in sorted(where.items, key=lambda x: x[0]):
+        for key, value in sorted(where.items(), key=lambda x: x[0]):
             parts = key.split('__')
             key, operator = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], 'EQ')
             where_clauses.append(key + sqloperator(operator) + sqlquote(value))
@@ -540,7 +540,7 @@ class DB(object):
         values = sorted(obj.items(), key=lambda t: t[0])
         query = 'UPDATE ' + self._table(table) + ' SET ' + sqlconvert(values)
         if where:
-            query += 'WHERE ' + where
+            query += ' WHERE ' + where
         cursor = self._db_cursor()
         self._db_execute(cursor, query)
         if not self.ctx.transactions:

@@ -550,7 +550,7 @@ class DB(object):
     def delete(self, table, where={}, using=None):
         """
         Delete from table
-        :param table: table[t1, t2, t3, ...] or t1
+        :param table: list[t1, t2, t3, ...] or t
         :param where: The condition
         :param using: The condition
         :return:
@@ -569,6 +569,96 @@ class DB(object):
             self.ctx.commit()
         return cursor.rowcount
 
+    def query(self, table, where={}, group_by=None, having=None, order_by=None, fields=['*'], page=0, page_num=10):
+        """
+        :param table: List[t1, t2, t3, ...] or t
+        :param where: The condition
+        :param group_by: make data into groups.
+        :param having: The condition
+        :param order_by: Sort Data
+        :param fields: Select fields from table
+        :param page: Default 0 means all data.
+        :param page_num: data each page
+        :return:
+        """
+        page, page_num = map(int, (page, page_num))
+
+        limit, offset = [(None, None), (page_num, (page - 1) * page_num)][bool(page)]
+        sql_clauses = self.sql_clauses(fields, table, where, group_by, having, order_by, limit, offset)
+        clauses = [self.gen_clause(sql, val) for sql, val in sql_clauses if val is not None]
+        sqlquery = SQLQuery.join(clauses)
+        return self._query(sqlquery)
+
+    def _query(self, sqlquery):
+        cursor = self._db_cursor()
+        self._db_execute(cursor, sqlquery)
+
+        if cursor.description:
+            names = [x[0] for x in cursor.description]
+            def iterwrapper():
+                row = cursor.fetchone()
+                while row:
+                    yield Item(dict(zip(names, row)))
+                    row = cursor.fetchone()
+            out = iterwrapper()
+        else:
+            out = cursor.rowcount
+
+        if not self.ctx.transactions:
+            self.ctx.commit()
+        return out
+
+    def sql_clauses(self, fields, tables, where, group, having, order, limit, offset):
+        return (
+            ('SELECT', fields),
+            ('FROM', sqllist(tables)),
+            ('WHERE', where),
+            ('GROUP BY', group),
+            ('HAVING', having),
+            ('ORDER BY', order),
+            ('LIMIT', limit),
+            ('OFFFSET', offset)
+        )
+
+    def gen_clause(self, sql, val):
+        if isinstance(val, int):
+            out = SQLQuery(val)
+        if sql == 'WHERE' and isinstance(val, dict):
+            out = self._where(val)
+        elif isinstance(val, (list, tuple)):
+            out = []
+            for item in val:
+                if isinstance(item, dict):
+                    out.append(self._where(item))
+                # elif isinstance(item, SQLQuery):
+                #     out.append(item)
+                # else:
+                #     raise Exception('Unknown SQL: %s' % str(item))
+                else:
+                    out.append(item)
+            if sql == "SELECT":
+                out = SQLQuery.join(out, ' AND ')
+            else:
+                out = SQLQuery.join(out, ',')
+        elif isinstance(val, SQLQuery):
+            out = val
+        else:
+            raise Exception("Unknow SQL: %s %s" % (sql, str(val)))
+
+        def xjoin(a, b):
+            if a and b: return a + ' ' + b
+            else: return ' '
+        return xjoin(sql, out)
+
+    def execute(self, sql):
+        """
+        Execute raw sql
+        """
+        sqlquery = SQLQuery(sql)
+        return self._query(sqlquery)
+
+    def transaction(self):
+        return Transaction(self.ctx)
 
 
 class Transaction(object):
@@ -644,8 +734,7 @@ class SQLPool(DB):
 
         super(SQLPool, self).__init__(module, config)
 
-        self.support_multiple_insert = True
-
+        # self.support_multiple_insert = True
 
 
 def import_driver(drivers):
@@ -662,5 +751,6 @@ def import_driver(drivers):
 
 
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
+    # import doctest
+    # doctest.testmod()
+    pass

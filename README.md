@@ -1,8 +1,8 @@
 PySQL
 -----
 
-PySQL is a MySQL client library written in Python, it can make CURD operations more easy and convenient
-without writing raw SQL.
+PySQL is a MySQL client library written in Python, it can make 
+**CURD** operations easy and convenient without writing raw SQL.
 
 ##1 Configure
 ###1.1 Configure in a toml file

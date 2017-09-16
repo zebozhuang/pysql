@@ -1,10 +1,12 @@
 PySQL
 -----
-
 PySQL is a MySQL client library written in Python, it can make 
 **CURD** operations easy and convenient without writing raw SQL.
 
+# Tutorial
+
 ##1 Configure
+
 ###1.1 Configure in a toml file
 ```
     host = "127.0.0.1"

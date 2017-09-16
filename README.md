@@ -3,11 +3,11 @@ PySQL
 PySQL is a MySQL client library written in Python, it can make 
 **CURD** operations easy and convenient without writing raw SQL.
 
-# Tutorial
+## Tutorial
 
-## 1 Configure
+### 1 Configure
 
-### 1.1 Configure in a toml file
+#### 1.1 Configure in a toml file
 ```
     host = "127.0.0.1"
     port = 3306
@@ -19,9 +19,9 @@ PySQL is a MySQL client library written in Python, it can make
     maxcached = 3
    # maxshared = 0
 ```
-Use Python **toml** to read this file.
+Please install [Python **toml**](https://github.com/uiri/toml) to read this file.
 
-### 1.2 Configure in a dictionary form
+#### 1.2 Configure in a dictionary form
 
 ```
     config = {
@@ -37,7 +37,7 @@ Use Python **toml** to read this file.
     }
 ```
 
-## 2 Instance
+### 2 Instance
 
 ```
     from pysql.pool import SQLPool
@@ -45,7 +45,7 @@ Use Python **toml** to read this file.
     pool = SQLPool(**config)
 ```
 
-## 3 Insert
+### 3 Insert
 
 ```
     obj = {'name': 'abc', 'age': 10}
@@ -61,7 +61,7 @@ Use Python **toml** to read this file.
     insert_ids = pool.insertmany(table='t1', objs=objs)
 ```
 
-## 4 Update
+### 4 Update
 
 ```
     obj = {'age': 10}

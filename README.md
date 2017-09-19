@@ -81,3 +81,15 @@ Please install [Python **toml**](https://github.com/uiri/toml) to read this file
     where = {'id__neq': 4}
     affected_rows = pool.update(table='t1', where=where, obj=obj)
 ```
+
+### 5. Delete
+
+```
+    # Case: id in (1, 2, 3)
+    affected_rows = pool.delete(table='t1', where={'id__in': [1, 2, 3]})
+```
+
+### 6. Select
+```
+    affected_rows = pool.query(table='t1', where={'id__in': [1, 2, 3]})
+```

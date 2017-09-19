@@ -339,6 +339,7 @@ def sqloperator(operator):
 
     return _SQL_OPERATOR[operator]
 
+
 def sqllist(values):
     """
     Make a list of data in a sql way
@@ -585,6 +586,7 @@ class DB(object):
         """
         page, page_num = map(int, (page, page_num))
 
+        table = [table] if not isinstance(table, (list, tuple)) else table
         limit, offset = [(None, None), (page_num, (page - 1) * page_num)][bool(page)]
         sql_clauses = self.sql_clauses(fields, table, where, group_by, having, order_by, limit, offset)
         clauses = [self.gen_clause(sql, val) for sql, val in sql_clauses if val is not None]
@@ -613,7 +615,7 @@ class DB(object):
     def sql_clauses(self, fields, tables, where, group, having, order, limit, offset):
         return (
             ('SELECT', fields),
-            ('FROM', sqllist(tables)),
+            ('FROM', tables),
             ('WHERE', where),
             ('GROUP BY', group),
             ('HAVING', having),
@@ -638,7 +640,7 @@ class DB(object):
                 #     raise Exception('Unknown SQL: %s' % str(item))
                 else:
                     out.append(item)
-            if sql == "SELECT":
+            if sql == 'SELECT':
                 out = SQLQuery.join(out, ' AND ')
             else:
                 out = SQLQuery.join(out, ',')

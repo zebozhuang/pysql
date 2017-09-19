@@ -51,15 +51,40 @@ class TestInsert(unittest.TestCase):
         for i in range(10):
             objs.append(
                     {
-                        'age': get_test_age(),
+                        'age': 1,
                         'name': get_test_name()
                     }
             )
-        insert_ids = self._insertmany(objs)
+        insert_ids = list(self._insertmany(objs))
         obj = {'age': 9}
         where = {'id__in': list(insert_ids)}
         affected_rows = self.pool.update(table='t2', where=where, obj=obj)
         assert affected_rows == 10, 'Fail to update: %d' % affected_rows
+
+        # id > insert_ids[4]
+        where = {'id__gt': insert_ids[4]}
+        obj = {'age': 11}
+        affected_rows = self.pool.update(table='t2', where=where, obj=obj)
+        assert affected_rows == len(insert_ids[5:]), 'Fail to update: %d != %d' % (affected_rows, len(insert_ids[5:]))
+
+
+        # id >= insert_ids[4]
+        where = {'id__gte': insert_ids[4]}
+        obj = {'age': 12}
+        affected_rows = self.pool.update(table='t2', where=where, obj=obj)
+        assert affected_rows == len(insert_ids[4:]), 'Fail to update: %d != %d' % (affected_rows, len(insert_ids[4:]))
+
+        # id != insert_ids[4]
+        where = {'id__neq': insert_ids[4]}
+        obj = {'age': 13}
+        affected_rows = self.pool.update(table='t2', where=where, obj=obj)
+        assert affected_rows != 0, 'Fail to update'
+
+        # id >= insert_ids[4] and id <= insert_ids[7]
+        where = {'id__gte': insert_ids[4], 'id__lte': insert_ids[7]}
+        obj = {'age': 14}
+        affected_rows = self.pool.update(table='t2', where=where, obj=obj)
+        assert affected_rows == 4, 'Fail to update: %d' % affected_rows
 
 
 if __name__ == '__main__':

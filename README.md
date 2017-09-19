@@ -62,10 +62,22 @@ Please install [Python **toml**](https://github.com/uiri/toml) to read this file
 ```
 
 ### 4 Update
+**obj** is the updating data and **where** is query condition.
 
 ```
+    Case: id = 3
     obj = {'age': 10}
-    where = {'id': 3}
+    where = {'id': 3}  or where = {'id__eq': 3}
     affected_rows = pool.update(table='t1', where=where, obj=obj)
 ```
-**obj** is the updating data and **where** is query condition.
+
+```
+    # Case: 12 <= id <= 20
+    where = {'id__gte': 12, 'id__lte': 20}
+    affected_rows = pool.update(table='t1', where=where, obj=obj)
+```
+```
+    # Case: id != 4
+    where = {'id__neq': 4}
+    affected_rows = pool.update(table='t1', where=where, obj=obj)
+```

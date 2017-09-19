@@ -27,6 +27,7 @@ class TestInsert(unittest.TestCase):
 
     def setUp(self):
         self.pool = SQLPool(**config)
+        self.pool.execute(TestInsert.TABLE_SCHEMA)
 
     def testInsert(self):
 

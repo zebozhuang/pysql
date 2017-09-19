@@ -9,9 +9,7 @@ from test.utils import get_test_name, get_test_age
 from pool import SQLPool
 
 
-
 config = ConfigReader.get('config.toml')
-
 
 class TestInsert(unittest.TestCase):
     """

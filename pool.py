@@ -749,10 +749,3 @@ def import_driver(drivers):
         except ImportError:
             pass
     raise ImportError('Unable to import ' + ' or '.join(drivers))
-
-
-
-if __name__ == '__main__':
-    # import doctest
-    # doctest.testmod()
-    pass

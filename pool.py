@@ -566,7 +566,7 @@ class DB(object):
         if where: query += ' WHERE ' + where
 
         if not isinstance(query, SQLQuery):
-            query = SQLQuery(where)
+            query = SQLQuery(query)
         self._db_execute(cursor, query)
         if not self.ctx.transactions:
             self.ctx.commit()

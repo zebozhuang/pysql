@@ -246,6 +246,7 @@ class SQLQuery(object):
     def values(self):
         return [i.value for i in self.items if isinstance(i, SQLParam)]
 
+    @staticmethod
     def join(items, sep=' ', prefix=None, suffix=None, target=None):
         """
         Joins multiple queries.

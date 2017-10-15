@@ -27,5 +27,9 @@ class TestTransaction(unittest.TestCase):
     def setUp(self):
         self.pool = SQLPool(**config)
         self.pool.execute(TestTransaction.TABLE_SCHEMA)
-        self.table = TestTransaction
-    # def te
+        self.table = TestTransaction.TABLE
+
+    def tearDown(self):
+        self.pool.delete(self.table)
+
+
